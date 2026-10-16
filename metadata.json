@@ -1,0 +1,8 @@
+{
+  "name": "Bhabhi Thulla - Pakistani Multiplayer Card Game",
+  "description": "Authentic Pakistani multiplayer card game (Get Away) featuring 3-4 players, real-time WebSockets, Thulla effects, Urdu/Punjabi commentary, AI bots, and Master Inspection Mode.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

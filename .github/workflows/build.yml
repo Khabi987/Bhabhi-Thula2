@@ -1,0 +1,92 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Project Dependencies
+        run: |
+          npm install
+
+      - name: Install Capacitor Android Tooling
+        run: |
+          npm install --save @capacitor/core @capacitor/cli @capacitor/android
+
+      - name: Build Web Application
+        run: |
+          npm run build
+
+      - name: Initialize Capacitor & Add Android Platform
+        run: |
+          npx cap init "Bhabhi Thulla" "com.bhabhithulla.game" --web-dir dist || true
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Configure Android Permissions & Network Security
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            # Ensure Internet permission is added if missing
+            if ! grep -q "android.permission.INTERNET" "$MANIFEST"; then
+              sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' "$MANIFEST"
+            fi
+            # Enable cleartext traffic for local or staging WebSocket connections
+            sed -i 's/<application/<application android:usesCleartextTraffic="true"/' "$MANIFEST" || true
+          fi
+
+      - name: Build Android APK via Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Locate Generated APK
+        id: locate-apk
+        run: |
+          echo "Finding generated APK files..."
+          APK_PATH=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "Error: No APK found!"
+            exit 1
+          fi
+          echo "Found APK at: $APK_PATH"
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bhabhi-Thulla-Android-APK
+          path: ${{ steps.locate-apk.outputs.apk_path }}
+          retention-days: 30
